@@ -3,6 +3,7 @@ package com.example.compascoord;
 import android.Manifest;
 import android.app.Activity;
 import android.content.ContentValues;
+import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
@@ -23,13 +24,17 @@ import android.widget.TextView;
 
 
 import androidx.annotation.RequiresApi;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.File;
+import java.util.ArrayList;
 import java.util.Date;
 
-public class MainActivity extends Activity implements SensorEventListener {
+public class MainActivity extends Activity implements SensorEventListener, View.OnClickListener {
 
 
     //Объявляем работу с сенсором устройства
@@ -37,23 +42,28 @@ public class MainActivity extends Activity implements SensorEventListener {
     //Объявляем объект TextView
     TextView CompOrient;
     TextView tvLocationNet;
-    Button push_bottom,btnAdd,btnRead;
+    Button push_bottom,btnPhoto;
+
 
     private LocationManager locationManager;
     StringBuilder sbGPS = new StringBuilder();
     StringBuilder sbNet = new StringBuilder();
     DBHelper dbHelper;
+    private String zap;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-
         //Связываем объект ImageView с нашим изображением:
         push_bottom = (Button) findViewById(R.id.button1);
         //TextView в котором будет отображаться градус поворота:
         CompOrient = (TextView) findViewById(R.id.Header);
         push_bottom.setOnClickListener(this);
+
+        btnPhoto = (Button) findViewById(R.id.button2);
+        btnPhoto.setOnClickListener(this);
+
         //Инициализируем возможность работать с сенсором устройства:
         mSensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
 
@@ -61,6 +71,33 @@ public class MainActivity extends Activity implements SensorEventListener {
         locationManager = (LocationManager) getSystemService(LOCATION_SERVICE);
 
         dbHelper = new DBHelper(this);
+        ArrayList<String> permissions_to_request = new ArrayList<String>();
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
+                != PackageManager.PERMISSION_GRANTED) {
+            // Permission is not granted
+            permissions_to_request.add(Manifest.permission.CAMERA);
+        }
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
+                != PackageManager.PERMISSION_GRANTED) {
+            // Permission is not granted
+            permissions_to_request.add(Manifest.permission.ACCESS_FINE_LOCATION);
+        }
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                != PackageManager.PERMISSION_GRANTED) {
+            // Permission is not granted
+            permissions_to_request.add(Manifest.permission.WRITE_EXTERNAL_STORAGE);
+        }
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE)
+                != PackageManager.PERMISSION_GRANTED) {
+            // Permission is not granted
+            permissions_to_request.add(Manifest.permission.READ_EXTERNAL_STORAGE);
+        }
+        if (permissions_to_request.size() > 0) {
+            String[] _permissions = permissions_to_request.toArray(new String[permissions_to_request.size()]);
+            ActivityCompat.requestPermissions(this,
+                    _permissions,
+                    1);
+        }
     }
 
     @RequiresApi(api = Build.VERSION_CODES.M)
@@ -204,4 +241,32 @@ public class MainActivity extends Activity implements SensorEventListener {
     }
 
 
+    @Override
+    public void onClick(View v) {
+        switch (v.getId()) {
+            case R.id.button1:
+                //upload();
+                float degree = Math.round(this.s);
+                String a = Float.toString(degree);
+                UploadFileAsync UploadFileAsync1 = new UploadFileAsync();
+                UploadFileAsync1.filename =zap;
+                UploadFileAsync1.gradus =a;
+                UploadFileAsync1.latitude =b;
+                UploadFileAsync1.longtitude =c;
+                UploadFileAsync1.execute();
+                break;
+            case R.id.button2:
+                Intent intent = new Intent(MainActivity.this, TakeShoot.class);
+                startActivityForResult(intent,1);
+                break;
+        }
+    }
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        if (data==null)
+        {
+            return;
+        }
+        zap =  data.getStringExtra("name");
+    }
 }

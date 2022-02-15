@@ -40,7 +40,7 @@ public class SendDeviceDetails extends AsyncTask<String, Void, String> {
         HttpURLConnection urlConnection = null;
         BufferedReader reader = null;
         try {
-            URL url = new URL("http://192.168.1.84:5000/api/upload_image");
+            URL url = new URL("https://signal.vita-control.ru/api/upload_image");
             urlConnection = (HttpURLConnection) url.openConnection();
             urlConnection.setDoOutput(true);
             // is output buffer writter
@@ -70,7 +70,7 @@ public class SendDeviceDetails extends AsyncTask<String, Void, String> {
             }
             JsonResponse = buffer.toString();
 //response data
-            Log.i("Zalupa",JsonResponse);
+            Log.i("Respons",JsonResponse);
             //send to post execute
             return JsonResponse;
 

@@ -18,7 +18,8 @@ import java.net.URL;
 class UploadFileAsync extends AsyncTask<String, Void, String> {
     private Notification.Action.Builder intent;
     public String filename;
-    public  String idname;
+    public  String gradus;
+    public double latitude, longtitude;
     public void addFormField(BufferedWriter dos, String parameter, String value){
         try {
             String twoHyphens = "--";
@@ -40,8 +41,10 @@ class UploadFileAsync extends AsyncTask<String, Void, String> {
 
         try {
 
-            String sourceFileUri = filename ;
-            String name1 = idname;
+            String sourceFileUri = filename;
+            String name1 = gradus;
+            double name2 = latitude;
+            double name3 = longtitude;
 
             HttpURLConnection conn = null;
             DataOutputStream dos = null;
@@ -57,7 +60,7 @@ class UploadFileAsync extends AsyncTask<String, Void, String> {
 
                 try {
 
-                    String upLoadServerUri = "http://192.168.1.84:5000/api/upload_image";
+                    String upLoadServerUri = "https://signal.vita-control.ru/api/test_upload";
                     // open a URL connection to the Servlet
                     FileInputStream fileInputStream = new FileInputStream(
                             sourceFile);
@@ -78,7 +81,9 @@ class UploadFileAsync extends AsyncTask<String, Void, String> {
 
                     dos = new DataOutputStream(conn.getOutputStream());
                     BufferedWriter outputStream2 = new BufferedWriter(new OutputStreamWriter(dos, "UTF-8"));
-                    addFormField(outputStream2, "name", name1);
+                    addFormField(outputStream2, "gradus", name1);
+                    addFormField(outputStream2, "latitude", Double.toString(name2));
+                    addFormField(outputStream2, "longtitude", Double.toString(name3));
 
                     dos.writeBytes(twoHyphens + boundary + lineEnd);
                     dos.writeBytes("Content-Disposition: form-data; name=\"record\";filename=\""
