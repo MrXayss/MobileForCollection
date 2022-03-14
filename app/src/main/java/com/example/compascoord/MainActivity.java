@@ -39,11 +39,14 @@ public class MainActivity extends Activity implements SensorEventListener, View.
 
     //Объявляем работу с сенсором устройства
     private SensorManager mSensorManager;
+    SensorManager sm;
     //Объявляем объект TextView
     TextView CompOrient;
     TextView tvLocationNet;
-    Button push_bottom,btnPhoto;
-
+    Button push_bottom,btnPhoto,btnStart,btnEnd;
+    TextView outputX;
+    TextView outputY;
+    TextView outputZ;
 
     private LocationManager locationManager;
     StringBuilder sbGPS = new StringBuilder();
@@ -63,6 +66,14 @@ public class MainActivity extends Activity implements SensorEventListener, View.
 
         btnPhoto = (Button) findViewById(R.id.button2);
         btnPhoto.setOnClickListener(this);
+
+        btnStart =(Button) findViewById(R.id.button);
+        btnStart.setOnClickListener(this);
+        btnEnd=(Button) findViewById(R.id.button3);
+        btnEnd.setOnClickListener(this);
+        outputX = (TextView) findViewById(R.id.outputX);
+        outputY = (TextView) findViewById(R.id.outputY);
+        outputZ = (TextView) findViewById(R.id.outputZ);
 
         //Инициализируем возможность работать с сенсором устройства:
         mSensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
@@ -108,6 +119,7 @@ public class MainActivity extends Activity implements SensorEventListener, View.
         //Устанавливаем слушателя ориентации сенсора
         mSensorManager.registerListener(this, mSensorManager.getDefaultSensor(Sensor.TYPE_ORIENTATION),
                 SensorManager.SENSOR_DELAY_GAME);
+        mSensorManager.registerListener(this, mSensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER), mSensorManager.SENSOR_DELAY_GAME);
 
         if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             // TODO: Consider calling
@@ -119,6 +131,7 @@ public class MainActivity extends Activity implements SensorEventListener, View.
             // for Activity#requestPermissions for more details.
             return;
         }
+
 //        locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER,
 //                0, 1, locationListener);
 
@@ -136,14 +149,23 @@ public class MainActivity extends Activity implements SensorEventListener, View.
         mSensorManager.unregisterListener(this);
         locationManager.removeUpdates(locationListener);
     }
-
+    @Override
+    protected void onStop() {
+        super.onStop();
+        mSensorManager.unregisterListener(this, mSensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER));
+    }
     @Override
     public void onSensorChanged(SensorEvent event) {
-
+        onStop();
         //Получаем градус поворота от оси, которая направлена на север, север = 0 градусов:
         s = event.values[0];
         float degree = Math.round(event.values[0]);
         CompOrient.setText("Отклонение от севера: " + Float.toString(degree) + " градусов");
+//        if (mSensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE) != null) {
+//            outputX.setText("x:"+Float.toString(event.values[0]));
+//            outputY.setText("y:"+Float.toString(event.values[1]));
+//            outputZ.setText("z:"+Float.toString(event.values[2]));
+//        }
 //        String a = Float.toString(degree);
 //        SendLoginData UploadFileAsync1 = new SendLoginData();
 //        UploadFileAsync1.parammetrs = a;
@@ -259,8 +281,30 @@ public class MainActivity extends Activity implements SensorEventListener, View.
                 Intent intent = new Intent(MainActivity.this, TakeShoot.class);
                 startActivityForResult(intent,1);
                 break;
+            case R.id.button:
+                final SensorEventListener mySensorEventListener = new SensorEventListener() {
+                    public void onSensorChanged(SensorEvent sensorEvent) {
+                        if (mSensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER) != null) {
+                            outputX.setText("x:"+Float.toString(sensorEvent.values[0]));
+                            outputY.setText("y:"+Float.toString(sensorEvent.values[1]));
+                            outputZ.setText("z:"+Float.toString(sensorEvent.values[2]));
+                        }
+                    }
+                    @Override
+                    public void onAccuracyChanged(Sensor sensor, int accuracy) {
+                        // TODO Auto-generated method stub
+
+                    }
+                };
+                sm = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
+                int sensorType = Sensor.TYPE_ACCELEROMETER;
+                sm.registerListener(mySensorEventListener,sm.getDefaultSensor(sensorType), SensorManager.SENSOR_DELAY_NORMAL);
+
+            case R.id.button3:
+                mSensorManager.unregisterListener(this, mSensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER));
         }
     }
+
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         if (data==null)

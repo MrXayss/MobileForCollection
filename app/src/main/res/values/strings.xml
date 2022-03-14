@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">Пажилой компас</string>
+    <string name="app_name">Сборщик данных</string>
     <string name="provider_gps">GPS</string>
     <string name="provider_network">Network</string>
     <string name="location_settings">Location settings</string>
