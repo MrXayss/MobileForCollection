@@ -78,7 +78,6 @@ public class MainActivity extends Activity implements  View.OnClickListener, Sen
 
         accuracy = (TextView) findViewById(R.id.textView7);
 
-        //Инициализируем возможность работать с сенсором устройства:
         mSensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
 
         mSensorManager.registerListener(this, mSensorManager.getDefaultSensor(Sensor.TYPE_ORIENTATION),
@@ -146,15 +145,6 @@ public class MainActivity extends Activity implements  View.OnClickListener, Sen
                 SensorManager.SENSOR_DELAY_GAME);
     }
 
-//    @Override
-//    protected void onPause() {
-//        super.onPause();
-//
-//        //Останавливаем при надобности слушателя ориентации
-//        //сенсора с целью сбережения заряда батареи:
-//        mSensorManager.unregisterListener(this);
-//        locationManager.removeUpdates(locationListener);
-//    }
     @Override
     protected void onStop() {
         super.onStop();
