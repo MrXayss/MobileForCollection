@@ -4,6 +4,8 @@ import android.app.Notification;
 import android.os.AsyncTask;
 import android.util.Log;
 
+import org.json.JSONObject;
+
 import java.io.BufferedInputStream;
 import java.io.BufferedWriter;
 import java.io.DataOutputStream;
@@ -20,6 +22,10 @@ class UploadFileAsync extends AsyncTask<String, Void, String> {
     public String filename;
     public  String gradus;
     public double latitude, longtitude;
+    public JSONObject json;
+    public String id_device;
+    public String text_signal;
+    public String text_loc;
     public void addFormField(BufferedWriter dos, String parameter, String value){
         try {
             String twoHyphens = "--";
@@ -40,11 +46,15 @@ class UploadFileAsync extends AsyncTask<String, Void, String> {
     protected String doInBackground(String... params) {
 
         try {
-
+            Log.i("file!", String.valueOf(filename));
             String sourceFileUri = filename;
             String name1 = gradus;
             double name2 = latitude;
             double name3 = longtitude;
+            String name4 = id_device;
+            String name5 = text_signal;
+            String name6 = text_loc;
+            JSONObject post_dict = json;
 
             HttpURLConnection conn = null;
             DataOutputStream dos = null;
@@ -61,6 +71,7 @@ class UploadFileAsync extends AsyncTask<String, Void, String> {
                 try {
 
                     String upLoadServerUri = "https://signal.vita-control.ru/api/test_upload";
+//                    String upLoadServerUri = "http://192.168.1.84:8000/api/test_upload";
                     // open a URL connection to the Servlet
                     FileInputStream fileInputStream = new FileInputStream(
                             sourceFile);
@@ -84,6 +95,10 @@ class UploadFileAsync extends AsyncTask<String, Void, String> {
                     addFormField(outputStream2, "gradus", name1);
                     addFormField(outputStream2, "latitude", Double.toString(name2));
                     addFormField(outputStream2, "longtitude", Double.toString(name3));
+                    addFormField(outputStream2, "json", post_dict.toString());
+                    addFormField(outputStream2, "id_device", name4);
+                    addFormField(outputStream2, "text_signal", name5);
+                    addFormField(outputStream2, "text_loc", name6);
 
                     dos.writeBytes(twoHyphens + boundary + lineEnd);
                     dos.writeBytes("Content-Disposition: form-data; name=\"record\";filename=\""

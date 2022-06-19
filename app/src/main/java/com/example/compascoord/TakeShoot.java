@@ -23,6 +23,11 @@ import android.graphics.Bitmap;
 import android.graphics.ImageFormat;
 import android.graphics.SurfaceTexture;
 import android.graphics.drawable.Drawable;
+import android.hardware.Sensor;
+import android.hardware.SensorEvent;
+import android.hardware.SensorEventListener;
+import android.hardware.SensorListener;
+import android.hardware.SensorManager;
 import android.hardware.camera2.CameraAccessException;
 import android.hardware.camera2.CameraCaptureSession;
 import android.hardware.camera2.CameraDevice;
@@ -37,18 +42,29 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.Looper;
+import android.os.Parcelable;
 import android.os.UserHandle;
+import android.util.Log;
 import android.view.Display;
 import android.view.Surface;
 import android.view.TextureView;
 import android.view.View;
 import android.widget.Button;
+import android.widget.CheckBox;
+import android.widget.EditText;
 import android.widget.ProgressBar;
 import android.widget.TextView;
+import android.hardware.Sensor;
+import android.hardware.SensorEvent;
+import android.hardware.SensorEventListener;
+import android.hardware.SensorManager;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.core.app.ActivityCompat;
+
+import org.json.JSONException;
+import org.json.JSONObject;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -58,13 +74,22 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
+import java.util.HashMap;
 
-public class TakeShoot extends Activity implements View.OnClickListener {
+
+public class TakeShoot extends Activity implements SensorEventListener,View.OnClickListener {
     Button start_button;
     //    Button stop_button;
     TextView Tw;
+    CheckBox checkBox_red;
+    CheckBox checkBox_green;
+    private SensorManager mSensorManager;
+    public String signal;
+
+
     boolean reading = false;
     private Thread recordingThread = null;
     File sdDir = null;
@@ -75,6 +100,8 @@ public class TakeShoot extends Activity implements View.OnClickListener {
     final int REQUEST_CODE_COLOR = 1;
 
     CameraService[] myCameras = null;
+
+    TextView CompOrient;
 
     private CameraManager mCameraManager = null;
     private final int CAMERA1 = 0;
@@ -109,10 +136,15 @@ public class TakeShoot extends Activity implements View.OnClickListener {
         super.onCreate(savedInstanceState);
 
         setContentView(R.layout.record);
+        mSensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
 
+        CompOrient = (TextView) findViewById(R.id.textView3);
 
         start_button = findViewById(R.id.button1);
         mImageView = findViewById(R.id.textureView);
+
+        checkBox_red = findViewById(R.id.checkBox_red);
+        checkBox_green = findViewById(R.id.checkBox_green);
 
         start_button.setOnClickListener(this);
         String sdState = android.os.Environment.getExternalStorageState();
@@ -124,6 +156,7 @@ public class TakeShoot extends Activity implements View.OnClickListener {
                 }
             }
         }
+
         reading = true;
         mCameraManager = (CameraManager) getSystemService(Context.CAMERA_SERVICE);
         try {
@@ -143,6 +176,27 @@ public class TakeShoot extends Activity implements View.OnClickListener {
         }
         if (!myCameras[CAMERA1].isOpen()) {
             myCameras[CAMERA1].openCamera();
+        }
+    }
+    public void onCheckboxClicked(View view) {
+        CheckBox checkBox = (CheckBox) view;
+        boolean checked = checkBox.isChecked();
+        switch(view.getId()) {
+            case R.id.checkBox_green:
+                if (checked) {
+                    Log.i("signal", "зеленый");
+                    signal = "зеленый";
+                    checkBox_red.setChecked(false);
+                }
+                break;
+            case R.id.checkBox_red:
+                if (checked) {
+                    Log.i("signal", "красный");
+                    signal = "красный";
+                    checkBox_green.setChecked(false);
+                }
+                break;
+
         }
     }
 
@@ -171,25 +225,44 @@ public class TakeShoot extends Activity implements View.OnClickListener {
             myCameras[CAMERA2].closeCamera();
         }
         stopBackgroundThread();
+//        mSensorManager.unregisterListener((SensorEventListener) this, mSensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER));
         super.onPause();
+    }
+    @Override
+    public void onSensorChanged(SensorEvent event) {
+
+    }
+
+    @Override
+    public void onAccuracyChanged(Sensor sensor, int i) {
+
     }
 
     @Override
     public void onResume() {
         super.onResume();
+//        mSensorManager.registerListener(this, mSensorManager.getDefaultSensor(Sensor.TYPE_ORIENTATION),
+//                SensorManager.SENSOR_DELAY_GAME);
         startBackgroundThread();
+
     }
 
-    public class CameraService extends Context {
+    public class CameraService extends Context implements SensorEventListener {
         private File mFile = new File(android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DCIM), "traffic.jpg");
         private String mCameraID;
         private CameraDevice mCameraDevice = null;
         private CameraCaptureSession mCaptureSession;
         private ImageReader mImageReader;
+        ArrayList XArray = new ArrayList();
+        ArrayList YArray = new ArrayList();
+        ArrayList ZArray = new ArrayList();
+        JSONObject post_dict = new JSONObject();
+        float degree;
 
         public CameraService(CameraManager cameraManager, String cameraID) {
             mCameraManager = cameraManager;
             mCameraID = cameraID;
+
         }
 
         public void makePhoto() {
@@ -219,11 +292,13 @@ public class TakeShoot extends Activity implements View.OnClickListener {
 
             @Override
             public void onImageAvailable(ImageReader reader) {
-                mBackgroundHandler.post(new ImageSaver(reader.acquireNextImage(), mFile));
+                mBackgroundHandler.post(new ImageSaver(reader.acquireNextImage(), mFile,XArray,YArray,ZArray,Float.toString(degree)));
             }
         };
 
-
+        public void stop() {
+            mSensorManager.unregisterListener(this);
+        };
         private CameraDevice.StateCallback mCameraCallback = new CameraDevice.StateCallback() {
 
             @Override
@@ -246,6 +321,7 @@ public class TakeShoot extends Activity implements View.OnClickListener {
 
 
         private void createCameraPreviewSession() {
+
 
             mImageReader = ImageReader.newInstance(1920, 1080, ImageFormat.JPEG, 1);
             mImageReader.setOnImageAvailableListener(mOnImageAvailableListener, null);
@@ -289,12 +365,16 @@ public class TakeShoot extends Activity implements View.OnClickListener {
             if (mCameraDevice == null) {
                 return false;
             } else {
+
                 return true;
             }
         }
 
         public void openCamera() {
             try {
+                mSensorManager.registerListener(this, mSensorManager.getDefaultSensor(Sensor.TYPE_ORIENTATION),
+                        SensorManager.SENSOR_DELAY_GAME);
+
                 if (ActivityCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
                     // TODO: Consider calling
                     //    ActivityCompat#requestPermissions
@@ -317,6 +397,16 @@ public class TakeShoot extends Activity implements View.OnClickListener {
             if (mCameraDevice != null) {
                 mCameraDevice.close();
                 mCameraDevice = null;
+                mSensorManager.unregisterListener(this);
+                try {
+                    post_dict.put("x" , XArray);
+                    post_dict.put("y", YArray);
+                    post_dict.put("z", ZArray);
+
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                }
+                Log.i("array", String.valueOf(post_dict));
             }
         }
 
@@ -851,9 +941,26 @@ public class TakeShoot extends Activity implements View.OnClickListener {
         public boolean isDeviceProtectedStorage() {
             return false;
         }
+
+        @Override
+        public void onSensorChanged(SensorEvent sensorEvent) {
+            if (mSensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE) != null) {
+                XArray.add(sensorEvent.values[0]);
+                YArray.add(sensorEvent.values[1]);
+                ZArray.add(sensorEvent.values[2]);
+                Log.i("123", String.valueOf(sensorEvent.values[0]));
+            }
+            degree = Math.round(sensorEvent.values[0]);
+            CompOrient.setText("Отклонение от севера: " + Float.toString(degree) + " градусов");
+        }
+
+        @Override
+        public void onAccuracyChanged(Sensor sensor, int i) {
+
+        }
     }
 
-    private class ImageSaver implements Runnable {
+    private class ImageSaver  implements Runnable   {
 
         /**
          * The JPEG image
@@ -863,10 +970,18 @@ public class TakeShoot extends Activity implements View.OnClickListener {
          * The file we save the image into.
          */
         private final File mFile;
+        ArrayList Xarray;
+        ArrayList Yarray;
+        ArrayList Zarray;
+        String CompOrient;
 
-        ImageSaver(Image image, File file) {
+        ImageSaver(Image image, File file,ArrayList xarray,ArrayList yarray,ArrayList zarray,String compOrient) {
             mImage = image;
             mFile = file;
+            Xarray = xarray;
+            Yarray = yarray;
+            Zarray = zarray;
+            CompOrient = compOrient;
         }
 
         @Override
@@ -892,10 +1007,17 @@ public class TakeShoot extends Activity implements View.OnClickListener {
             }
             Intent intent = new Intent();
             intent.putExtra("name",mFile.toString());
+            intent.putExtra("text_signal", signal);
+            intent.putExtra("text_degree", CompOrient);
+            Log.i("zap", String.valueOf(Xarray));
+            intent.putExtra("xArray", Xarray);
+            intent.putExtra("yArray", Yarray);
+            intent.putExtra("zArray", Zarray);
             setResult(RESULT_OK, intent);
             finish();
             //System.exit(0);
         }
+
     }
 }
 

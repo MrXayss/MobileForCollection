@@ -2,12 +2,8 @@ package com.example.compascoord;
 
 import android.Manifest;
 import android.app.Activity;
-import android.content.ContentValues;
-import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
-import android.database.Cursor;
-import android.database.sqlite.SQLiteDatabase;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
@@ -17,9 +13,12 @@ import android.location.LocationListener;
 import android.location.LocationManager;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Parcelable;
+import android.provider.Settings;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.TextView;
 
 
@@ -30,58 +29,66 @@ import androidx.core.content.ContextCompat;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import java.io.File;
 import java.util.ArrayList;
-import java.util.Date;
-
-public class MainActivity extends Activity implements SensorEventListener, View.OnClickListener {
+import java.util.concurrent.ExecutionException;
 
 
-    //Объявляем работу с сенсором устройства
-    private SensorManager mSensorManager;
-    SensorManager sm;
-    //Объявляем объект TextView
-    TextView CompOrient;
+public class MainActivity extends Activity implements  View.OnClickListener, SensorEventListener {
+
+    private SensorManager mSensorManager;;
     TextView tvLocationNet;
-    Button push_bottom,btnPhoto,btnStart,btnEnd;
-    TextView outputX;
-    TextView outputY;
-    TextView outputZ;
+    TextView ViewID;
+    TextView IDTraffic;
+    TextView accuracy;
+    Button push_bottom,btnPhoto,btnadd,btndrop;
+    EditText location;
 
+    ArrayList<Parcelable> XArray;
+    ArrayList<Parcelable> YArray;
+    ArrayList<Parcelable> ZArray;
     private LocationManager locationManager;
-    StringBuilder sbGPS = new StringBuilder();
-    StringBuilder sbNet = new StringBuilder();
-    DBHelper dbHelper;
-    private String zap;
+    private String filename;
+    private String text_signal;
+    private String text_degree;
+    public String deviceId;
+    public String TrafficId;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        //Связываем объект ImageView с нашим изображением:
         push_bottom = (Button) findViewById(R.id.button1);
-        //TextView в котором будет отображаться градус поворота:
-        CompOrient = (TextView) findViewById(R.id.Header);
         push_bottom.setOnClickListener(this);
 
         btnPhoto = (Button) findViewById(R.id.button2);
         btnPhoto.setOnClickListener(this);
 
-        btnStart =(Button) findViewById(R.id.button);
-        btnStart.setOnClickListener(this);
-        btnEnd=(Button) findViewById(R.id.button3);
-        btnEnd.setOnClickListener(this);
-        outputX = (TextView) findViewById(R.id.outputX);
-        outputY = (TextView) findViewById(R.id.outputY);
-        outputZ = (TextView) findViewById(R.id.outputZ);
+        btnadd = (Button) findViewById(R.id.button);
+        btnadd.setOnClickListener(this);
+
+        btndrop = (Button) findViewById(R.id.button3);
+        btndrop.setOnClickListener(this);
+        btndrop.setVisibility(View.INVISIBLE);
+
+        deviceId = Settings.Secure.getString(getApplicationContext().getContentResolver(), Settings.Secure.ANDROID_ID);
+        ViewID = (TextView) findViewById(R.id.textView);
+        ViewID.setText("ID: " + deviceId);
+
+        IDTraffic = (TextView) findViewById(R.id.textView2);
+
+        accuracy = (TextView) findViewById(R.id.textView7);
 
         //Инициализируем возможность работать с сенсором устройства:
         mSensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
 
+        mSensorManager.registerListener(this, mSensorManager.getDefaultSensor(Sensor.TYPE_ORIENTATION),
+                SensorManager.SENSOR_DELAY_GAME);
+
         tvLocationNet = findViewById(R.id.tvLocationNet);
         locationManager = (LocationManager) getSystemService(LOCATION_SERVICE);
 
-        dbHelper = new DBHelper(this);
+        location =findViewById(R.id.editTextTextPersonName);
+
         ArrayList<String> permissions_to_request = new ArrayList<String>();
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
                 != PackageManager.PERMISSION_GRANTED) {
@@ -111,15 +118,11 @@ public class MainActivity extends Activity implements SensorEventListener, View.
         }
     }
 
+
     @RequiresApi(api = Build.VERSION_CODES.M)
     @Override
     protected void onResume() {
         super.onResume();
-
-        //Устанавливаем слушателя ориентации сенсора
-        mSensorManager.registerListener(this, mSensorManager.getDefaultSensor(Sensor.TYPE_ORIENTATION),
-                SensorManager.SENSOR_DELAY_GAME);
-        mSensorManager.registerListener(this, mSensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER), mSensorManager.SENSOR_DELAY_GAME);
 
         if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             // TODO: Consider calling
@@ -132,81 +135,59 @@ public class MainActivity extends Activity implements SensorEventListener, View.
             return;
         }
 
-//        locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER,
-//                0, 1, locationListener);
 
         locationManager.requestLocationUpdates(
-                LocationManager.NETWORK_PROVIDER, 0, 1,
+                LocationManager.GPS_PROVIDER, 200, 1,
                 locationListener);
+//        locationManager.requestLocationUpdates(
+//                LocationManager.NETWORK_PROVIDER, 0, 1,
+//                locationListener);
+        mSensorManager.registerListener(this, mSensorManager.getDefaultSensor(Sensor.TYPE_ORIENTATION),
+                SensorManager.SENSOR_DELAY_GAME);
     }
 
-    @Override
-    protected void onPause() {
-        super.onPause();
-
-        //Останавливаем при надобности слушателя ориентации
-        //сенсора с целью сбережения заряда батареи:
-        mSensorManager.unregisterListener(this);
-        locationManager.removeUpdates(locationListener);
-    }
+//    @Override
+//    protected void onPause() {
+//        super.onPause();
+//
+//        //Останавливаем при надобности слушателя ориентации
+//        //сенсора с целью сбережения заряда батареи:
+//        mSensorManager.unregisterListener(this);
+//        locationManager.removeUpdates(locationListener);
+//    }
     @Override
     protected void onStop() {
         super.onStop();
         mSensorManager.unregisterListener(this, mSensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER));
     }
-    @Override
-    public void onSensorChanged(SensorEvent event) {
-        onStop();
-        //Получаем градус поворота от оси, которая направлена на север, север = 0 градусов:
-        s = event.values[0];
-        float degree = Math.round(event.values[0]);
-        CompOrient.setText("Отклонение от севера: " + Float.toString(degree) + " градусов");
-//        if (mSensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE) != null) {
-//            outputX.setText("x:"+Float.toString(event.values[0]));
-//            outputY.setText("y:"+Float.toString(event.values[1]));
-//            outputZ.setText("z:"+Float.toString(event.values[2]));
-//        }
-//        String a = Float.toString(degree);
-//        SendLoginData UploadFileAsync1 = new SendLoginData();
-//        UploadFileAsync1.parammetrs = a;
-//        UploadFileAsync1.execute();
 
-    }
-    private float s;
-    private double b;
-    private double c;
-    protected void upload() {
+    private double latitude;
+    private double longtitude;
+    protected void upload() throws ExecutionException, InterruptedException {
 
-        float degree = Math.round(this.s);
-        String a = Float.toString(degree);
-//        SendLoginData UploadFileAsync1 = new SendLoginData();
-//        UploadFileAsync1.parammetrs = a;
-//        UploadFileAsync1.execute();
         JSONObject post_dict = new JSONObject();
 
         try {
-            post_dict.put("gradus" , a);
-            post_dict.put("coord1", b);
-            post_dict.put("coord2", c);
-
+            post_dict.put("name_traffic" ,location.getText().toString());
         } catch (JSONException e) {
             e.printStackTrace();
         }
-        if (post_dict.length() > 0) {
-            new SendDeviceDetails().execute(String.valueOf(post_dict));
-        }
+        //new SendDeviceDetails().execute(String.valueOf(post_dict)).get();
+        TrafficId = String.valueOf(new SendDeviceDetails().execute(String.valueOf(post_dict)).get());
+        location.setVisibility(View.INVISIBLE);
+        btnadd.setVisibility(View.INVISIBLE);
+        IDTraffic.setText("ID светофора: " + TrafficId);
+        IDTraffic.setVisibility(View.VISIBLE);
+        btndrop.setVisibility(View.VISIBLE);
     }
 
-    @Override
-    public void onAccuracyChanged(Sensor sensor, int accuracy) {
-        //Этот метод не используется, но без него программа будет ругаться
-    }
 
     private LocationListener locationListener = new LocationListener() {
 
 
         @Override
         public void onLocationChanged(Location location) {
+            Log.i("sas", String.valueOf(location));
             showLocation(location);
         }
 
@@ -246,8 +227,11 @@ public class MainActivity extends Activity implements SensorEventListener, View.
         if (location == null)
             return;
         if (location.getProvider().equals(
-                LocationManager.NETWORK_PROVIDER)) {
+                LocationManager.GPS_PROVIDER)) {
+//            LocationManager.NETWORK_PROVIDER)) {
+            accuracy.setText("Точность:"+String.valueOf(location.getAccuracy()));
             tvLocationNet.setText(formatLocation(location));
+            push_bottom.setVisibility(View.VISIBLE);
         }
     }
 
@@ -255,10 +239,10 @@ public class MainActivity extends Activity implements SensorEventListener, View.
     private String formatLocation(Location location) {
         if (location == null)
             return "";
-        b = location.getLatitude();
-        c = location.getLongitude();
+        latitude = location.getLatitude();
+        longtitude = location.getLongitude();
         return String.format(
-                "Coordinates: lat = %1$.4f, lon = %2$.4f",
+                "   Широта = %1$f, Долгота = %2$f",
                 location.getLatitude(), location.getLongitude());
     }
 
@@ -267,14 +251,25 @@ public class MainActivity extends Activity implements SensorEventListener, View.
     public void onClick(View v) {
         switch (v.getId()) {
             case R.id.button1:
-                //upload();
-                float degree = Math.round(this.s);
-                String a = Float.toString(degree);
+                JSONObject post_dict = new JSONObject();
+
                 UploadFileAsync UploadFileAsync1 = new UploadFileAsync();
-                UploadFileAsync1.filename =zap;
-                UploadFileAsync1.gradus =a;
-                UploadFileAsync1.latitude =b;
-                UploadFileAsync1.longtitude =c;
+                UploadFileAsync1.filename =filename;
+                UploadFileAsync1.gradus = text_degree;
+                UploadFileAsync1.latitude =latitude;
+                UploadFileAsync1.longtitude =longtitude;
+                UploadFileAsync1.id_device =deviceId;
+                UploadFileAsync1.text_signal =text_signal;
+                UploadFileAsync1.text_loc =TrafficId;
+                try {
+                    post_dict.put("x" , XArray);
+                    post_dict.put("y", YArray);
+                    post_dict.put("z", ZArray);
+
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                }
+                UploadFileAsync1.json =post_dict;
                 UploadFileAsync1.execute();
                 break;
             case R.id.button2:
@@ -282,35 +277,48 @@ public class MainActivity extends Activity implements SensorEventListener, View.
                 startActivityForResult(intent,1);
                 break;
             case R.id.button:
-                final SensorEventListener mySensorEventListener = new SensorEventListener() {
-                    public void onSensorChanged(SensorEvent sensorEvent) {
-                        if (mSensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER) != null) {
-                            outputX.setText("x:"+Float.toString(sensorEvent.values[0]));
-                            outputY.setText("y:"+Float.toString(sensorEvent.values[1]));
-                            outputZ.setText("z:"+Float.toString(sensorEvent.values[2]));
-                        }
-                    }
-                    @Override
-                    public void onAccuracyChanged(Sensor sensor, int accuracy) {
-                        // TODO Auto-generated method stub
-
-                    }
-                };
-                sm = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
-                int sensorType = Sensor.TYPE_ACCELEROMETER;
-                sm.registerListener(mySensorEventListener,sm.getDefaultSensor(sensorType), SensorManager.SENSOR_DELAY_NORMAL);
-
+                try {
+                    upload();
+                } catch (ExecutionException e) {
+                    e.printStackTrace();
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+                break;
             case R.id.button3:
-                mSensorManager.unregisterListener(this, mSensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER));
+                IDTraffic.setVisibility(View.INVISIBLE);
+                TrafficId = null;
+                location.setVisibility(View.VISIBLE);
+                location.setText("");
+                btnadd.setVisibility(View.VISIBLE);
+
+
         }
     }
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+
         if (data==null)
         {
             return;
         }
-        zap =  data.getStringExtra("name");
+        filename =  data.getStringExtra("name");
+        text_signal =  data.getStringExtra("text_signal");
+        text_degree = data.getStringExtra("text_degree");
+        XArray = data.getParcelableArrayListExtra("xArray");
+        YArray = data.getParcelableArrayListExtra("yArray");
+        ZArray = data.getParcelableArrayListExtra("zArray");
+    }
+
+    @Override
+    public void onSensorChanged(SensorEvent sensorEvent) {
+
+
+    }
+
+    @Override
+    public void onAccuracyChanged(Sensor sensor, int i) {
+
     }
 }
