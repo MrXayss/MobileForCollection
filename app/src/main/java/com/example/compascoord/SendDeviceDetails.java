@@ -44,20 +44,15 @@ public class SendDeviceDetails extends AsyncTask<String, Void, String> {
             URL url = new URL("https://signal.vita-control.ru/api/upload_image");
             urlConnection = (HttpURLConnection) url.openConnection();
             urlConnection.setDoOutput(true);
-            // is output buffer writter
             urlConnection.setRequestMethod("POST");
             urlConnection.setRequestProperty("Content-Type", "application/json");
             urlConnection.setRequestProperty("Accept", "application/json");
-//set headers and method
             Writer writer = new BufferedWriter(new OutputStreamWriter(urlConnection.getOutputStream(), "UTF-8"));
             writer.write(JsonDATA);
-// json data
             writer.close();
             InputStream inputStream = urlConnection.getInputStream();
-//input stream
             StringBuffer buffer = new StringBuffer();
             if (inputStream == null) {
-                // Nothing to do.
                 return null;
             }
             reader = new BufferedReader(new InputStreamReader(inputStream));
@@ -66,13 +61,10 @@ public class SendDeviceDetails extends AsyncTask<String, Void, String> {
             while ((inputLine = reader.readLine()) != null)
                 buffer.append(inputLine + "\n");
             if (buffer.length() == 0) {
-                // Stream was empty. No point in parsing.
                 return null;
             }
             JsonResponse = buffer.toString();
-//response data
             Log.i("Respons",JsonResponse);
-            //send to post execute
             return JsonResponse;
 
 
