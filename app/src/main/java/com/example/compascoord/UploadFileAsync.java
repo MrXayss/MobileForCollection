@@ -72,12 +72,10 @@ class UploadFileAsync extends AsyncTask<String, Void, String> {
 
                     String upLoadServerUri = "https://signal.vita-control.ru/api/test_upload";
 //                    String upLoadServerUri = "http://192.168.1.84:8000/api/test_upload";
-                    // open a URL connection to the Servlet
                     FileInputStream fileInputStream = new FileInputStream(
                             sourceFile);
                     URL url = new URL(upLoadServerUri);
 
-                    // Open a HTTP connection to the URL
                     conn = (HttpURLConnection) url.openConnection();
                     conn.setDoInput(true); // Allow Inputs
                     conn.setDoOutput(true); // Allow Outputs
@@ -105,13 +103,11 @@ class UploadFileAsync extends AsyncTask<String, Void, String> {
                             + sourceFileUri + "\""+ lineEnd);
                     dos.writeBytes(lineEnd);
 
-                    // create a buffer of maximum size
                     bytesAvailable = fileInputStream.available();
 
                     bufferSize = Math.min(bytesAvailable, maxBufferSize);
                     buffer = new byte[bufferSize];
 
-                    // read file and write it into form...
                     bytesRead = fileInputStream.read(buffer, 0, bufferSize);
 
                     while (bytesRead > 0) {
@@ -125,13 +121,9 @@ class UploadFileAsync extends AsyncTask<String, Void, String> {
 
                     }
 
-                    // send multipart form data necesssary after file
-                    // data...
                     dos.writeBytes(lineEnd);
                     dos.writeBytes(twoHyphens + boundary + twoHyphens
                             + lineEnd);
-
-                    // close the streams //
                     fileInputStream.close();
                     dos.flush();
                     dos.close();
@@ -145,13 +137,11 @@ class UploadFileAsync extends AsyncTask<String, Void, String> {
                     e.printStackTrace();
 
                 }
-                // dialog.dismiss();
 
             } // End else block
 
 
         } catch (Exception ex) {
-            // dialog.dismiss();
 
             ex.printStackTrace();
         }
